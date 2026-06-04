@@ -1,0 +1,7 @@
+---
+title: "workflow_outline"
+format: html
+---
+
+# Overall aims
+Develop a mechanistic model of human-human infectious disease transmission that will be largely disease agnostic but as specificity builds will resemble Ebola virus disease.
