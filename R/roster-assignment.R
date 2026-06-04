@@ -8,10 +8,12 @@ peeps <- c(
     "Saras",
     "Yuval",
     "Dave",
-    "John"
+    "John",
+    "August"
 )
 n_peeps <- length(peeps)
 
-screen_sharer <- peeps[sample.int(n_peeps)]
-minute <- peeps[sample.int(n_peeps)]
+driver <- peeps[sample.int(n_peeps)]
+# shuffle such that the person driving is the person documenting the week after
+documenter <- driver[c(2:length(peeps),1)]
 
