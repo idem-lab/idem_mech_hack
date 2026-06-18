@@ -5,3 +5,64 @@ format: html
 
 # Overall aims
 Develop a mechanistic model of human-human infectious disease transmission that will be largely disease agnostic but as specificity builds will resemble Ebola virus disease.
+
+#
+
+```{r}
+set.seed(20260604)
+individual_index <- 1:10
+
+
+population_states <- c(TRUE, rep(FALSE, 9))
+
+```
+
+
+Daily universal probabilities
+```{r}
+# probability_of_infection_per_contact if contact is infected
+p_infection <- 0.1
+
+# number of contacts each day for each individual
+n_contacts <- 2
+```
+
+```{r}
+
+infection_function <- function(
+    index,
+    p_infection,
+    n_contacts,
+    population_states
+  ){
+  state <- population_states[index]
+  
+  if(state) {
+    return(TRUE)
+  } else {
+    contacts <- sample(
+      x = population_states[-index],
+      size = n_contacts,
+      replace = FALSE
+    )
+    
+    possible_infections <- p_infection*contacts
+    
+    outcome <- rbinom(
+      n = length(possible_infections),
+      size = 1,
+      prob = possible_infections
+    )
+    
+    return(as.logical(max(outcome)))
+    
+  }
+}
+
+```
+
+```{r}
+
+```
+
+
