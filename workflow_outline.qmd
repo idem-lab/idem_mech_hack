@@ -28,10 +28,12 @@ n_contacts <- 2
 ```
 
 ```{r}
+# For testing
+index <- 3
 
 infection_function <- function(
     index,
-    p_infection,
+    prob_infection,
     n_contacts,
     population_states
   ){
@@ -46,7 +48,7 @@ infection_function <- function(
       replace = FALSE
     )
     
-    possible_infections <- p_infection*contacts
+    possible_infections <- prob_infection*contacts
     
     outcome <- rbinom(
       n = length(possible_infections),
@@ -62,6 +64,23 @@ infection_function <- function(
 ```
 
 ```{r}
+# Time-steps
+
+time_steps <- 10
+population_over_time <- matrix(nrow = time_steps, ncol = length(population_states))
+population_over_time[1,] <- population_states
+
+for (t in 1:(time_steps-1)) {
+  
+  for (i in individual_index) {
+    
+    y <- infection_function(i, 0.1, 2, population_over_time[t,])
+    population_over_time[t+1,i] <- y
+  }
+}
+
+print(population_over_time)
+
 
 ```
 
