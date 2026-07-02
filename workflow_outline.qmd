@@ -96,7 +96,7 @@ infection_function <- function(
 
 ```{r}
 # Time-steps
-
+# Currently takes in single contact_pairs object (should take in a unique one per time step)
 time_steps <- 10
 infection_status_over_time <- matrix(nrow = time_steps, ncol = length(infection_status))
 infection_status_over_time[1,] <- infection_status
