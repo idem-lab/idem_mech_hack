@@ -13,7 +13,7 @@ set.seed(20260604)
 individual_index <- 1:10
 
 
-population_states <- c(TRUE, rep(FALSE, 9))
+infection_status <- c(TRUE, rep(FALSE, 9))
 
 ```
 
@@ -35,15 +35,15 @@ infection_function <- function(
     index,
     prob_infection,
     n_contacts,
-    population_states
+    infection_status
   ){
-  state <- population_states[index]
+  state <- infection_status[index]
   
   if(state) {
     return(TRUE)
   } else {
     contacts <- sample(
-      x = population_states[-index],
+      x = infection_status[-index],
       size = n_contacts,
       replace = FALSE
     )
@@ -67,19 +67,20 @@ infection_function <- function(
 # Time-steps
 
 time_steps <- 10
-population_over_time <- matrix(nrow = time_steps, ncol = length(population_states))
-population_over_time[1,] <- population_states
+infection_status_over_time <- matrix(nrow = time_steps, ncol = length(infection_status))
+infection_status_over_time[1,] <- infection_status
 
 for (t in 1:(time_steps-1)) {
   
   for (i in individual_index) {
     
-    y <- infection_function(i, 0.1, 2, population_over_time[t,])
-    population_over_time[t+1,i] <- y
+    y <- infection_function(index = i, prob_infection = p_infection, n_contacts = n_contacts,  
+                            infection_status = infection_status_over_time[t,])
+    infection_status_over_time[t+1,i] <- y
   }
 }
 
-print(population_over_time)
+print(infection_status_over_time)
 
 
 ```
