@@ -59,11 +59,6 @@ infection_function <- function(
   if(state) {
     return(TRUE)
   } else {
-    # contacts <- sample(
-    #   x = infection_status[-index],
-    #   size = n_contacts,
-    #   replace = FALSE
-    # )
   contacts_1 <- contact_pairs$second_contact[contact_pairs$first_contact == index]
   contacts_2 <- contact_pairs$first_contact[contact_pairs$second_contact == index]
   contacts <- c(contacts_1, contacts_2)
