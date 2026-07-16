@@ -64,9 +64,8 @@ infection_function <- function(
   contacts_1 <- contact_pairs$second_contact[contact_pairs$first_contact == index]
   contacts_2 <- contact_pairs$first_contact[contact_pairs$second_contact == index]
   contacts <- c(contacts_1, contacts_2)
-  contacts <- unique(contacts) # exclude multiple contact events between the same pair within the same timestep
     
-  contacted <- seq_along(infection_status) %in% contacts
+  contacted <- seq_along(infection_status) %in% contacts # exclude multiple contact events between the same pair within the same timestep --- note we intend to look over this decision in the future
   infectious_contacts <- infection_status & contacted   
     
     possible_infections <- prob_infection*infectious_contacts
