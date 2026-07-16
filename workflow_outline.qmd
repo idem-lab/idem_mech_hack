@@ -8,46 +8,39 @@ Develop a mechanistic model of human-human infectious disease transmission that 
 
 #
 
+Daily universal probabilities
 ```{r}
-set.seed(20260604)
-individual_index <- 1:10
-
-
-infection_status <- c(TRUE, rep(FALSE, 9))
+seed <- set.seed(20260604)
+params <- list(
+  individual_index = 1:10,
+  n_contact_events = 2,
+  init_infection_status = c(TRUE, rep(FALSE, 9)),
+  p_infection = 0.2,
+  n_time_steps = 10
+)
 
 ```
 
-
-Daily universal probabilities
+Create contact pairs prior to the timesteps
 ```{r}
-# probability_of_infection_per_contact if contact is infected
-p_infection <- 0.1
 
-# number of contacts each day for each individual
-#n_contacts <- 2
+simulate_contact_pairs <- function(
+    individual_index  = params$individual_index,
+    n_contact_events = params$n_contact_events) {
+  
+  n_individuals <- length(individual_index) 
+  sample_size_contact_events <- n_contact_events*n_individuals
 
-# Create contact pairs prior to the timesteps
-### NOTE THIS IS CURRENTLY IMPLEMENTED AS A GLOBAL PARAMETER BUT IT NEEDS TO BE INTERATED FOR EACH TIMESTEP
-
-n_individuals <- length(individual_index) #contacts will be independent of infection status
-n_contact_events <- 2*n_individuals
-
-first_contact <- sample(x = individual_index, size = n_contact_events, replace = TRUE)
-second_contact <- sample(x = individual_index, size = n_contact_events, replace = TRUE)
+first_contact <- sample(x = individual_index, size = sample_size_contact_events, replace = TRUE)
+second_contact <- sample(x = individual_index, size = sample_size_contact_events, replace = TRUE)
 
 keep <- first_contact != second_contact 
 
 # at the moment this allows for multiple contact events between the same pair in the same timestep
 contact_pairs <- data.frame(first_contact = first_contact[keep], second_contact = second_contact[keep])
 
-# for each individual list the indices of all people they contact in this timestep
-# #for (i in individual_index) {
-#   i = 2
-#   contacts_1 <- contact_pairs$second_contact[contact_pairs$first_contact == i]
-#   contacts_2 <- contact_pairs$first_contact[contact_pairs$second_contact == i]
-#   contacts <- c(contacts_1, contacts_2)
-#   contacts <- unique(contacts) # exclude multiple contact events between the same pair within the same timestep
-# #}
+return(contact_pairs)
+}
 
 ```
 
@@ -97,22 +90,31 @@ infection_function <- function(
 ```{r}
 # Time-steps
 # Currently takes in single contact_pairs object (should take in a unique one per time step)
-time_steps <- 10
-infection_status_over_time <- matrix(nrow = time_steps, ncol = length(infection_status))
-infection_status_over_time[1,] <- infection_status
+infection_status_over_time <- matrix(nrow = params$n_time_steps, ncol = length(params$individual_index))
+infection_status_over_time[1,] <- params$init_infection_status
 
-for (t in 1:(time_steps-1)) {
+contact_pairs_over_time <- list()
+
+for (t in 1:((params$n_time_steps)-1)) {
   
-  for (i in individual_index) {
+  contact_pairs_over_time[[t]] <- simulate_contact_pairs()
+  
+  for (i in params$individual_index) {
     
-    y <- infection_function(index = i, prob_infection = p_infection, contact_pairs = contact_pairs,  
-                            infection_status = infection_status_over_time[t,])
+    y <- infection_function(
+      index = i, 
+      prob_infection = params$p_infection, 
+      contact_pairs = contact_pairs_over_time[[t]], 
+      infection_status = infection_status_over_time[t,]
+      )
+    
     infection_status_over_time[t+1,i] <- y
   }
 }
 
-print(infection_status_over_time)
-
+infection_status_over_time
+# can print contact pairs for diagnostics
+# print(contact_pairs_over_time)
 
 ```
 
