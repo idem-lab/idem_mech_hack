@@ -19,6 +19,8 @@ params <- list(
   n_time_steps = 10
 )
 
+### for next session: add compartments after infection (recovery and death)
+
 ```
 
 Create contact pairs prior to the timesteps
