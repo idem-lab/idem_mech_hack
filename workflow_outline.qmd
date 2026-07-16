@@ -27,6 +27,94 @@ p_infection <- 0.1
 n_contacts <- 2
 ```
 
+# Model definition
+
+Consider a closed population of $N = 10$ individuals, indexed by
+$i \in \{1, \dots, N\}$, in discrete time (days) $t = 0, 1, 2, \dots$
+
+**State.** Each individual has a binary infection state, collected in the
+vector $\mathbf{X}^{(t)} = \big(X_1^{(t)}, \dots, X_N^{(t)}\big)$
+(`population_states`):
+
+$$
+X_i^{(t)} \in \{0, 1\}, \qquad
+X_i^{(t)} =
+\begin{cases}
+1 & \text{individual } i \text{ infected at time } t,\\
+0 & \text{individual } i \text{ susceptible at time } t.
+\end{cases}
+$$
+
+The initial condition seeds a single infection:
+
+$$
+X_1^{(0)} = 1, \qquad X_i^{(0)} = 0 \quad \text{for } i = 2, \dots, N.
+$$
+
+**Parameters.**
+
+- $p \in [0, 1]$ — per-contact transmission probability from an infected
+  contact ($p = 0.1$, `p_infection`);
+- $k \in \mathbb{N}$ — number of contacts per individual per day
+  ($k = 2$, `n_contacts`).
+
+**Daily transition.** For a susceptible individual $i$, draw a contact set
+uniformly at random, without replacement, from everyone else:
+
+$$
+C_i^{(t)} \subseteq \{1, \dots, N\} \setminus \{i\}, \qquad
+\big|C_i^{(t)}\big| = k, \qquad
+C_i^{(t)} \sim \text{Uniform}.
+$$
+
+Each drawn contact independently transmits with a probability proportional to
+their infection state:
+
+$$
+Y_{ij}^{(t)} \,\big|\, \mathbf{X}^{(t)} \;\sim\;
+\operatorname{Bernoulli}\!\big(p \, X_j^{(t)}\big),
+\qquad j \in C_i^{(t)},
+$$
+
+so an uninfected contact ($X_j^{(t)} = 0$) can never transmit. The next state
+is then (infection is absorbing — there is no recovery):
+
+$$
+X_i^{(t+1)} =
+\begin{cases}
+1, & X_i^{(t)} = 1,\\[6pt]
+\displaystyle \max_{j \in C_i^{(t)}} Y_{ij}^{(t)}, & X_i^{(t)} = 0,
+\end{cases}
+$$
+
+where the `max` over Bernoulli draws is equivalent to
+$1 - \prod_{j \in C_i^{(t)}} \big(1 - Y_{ij}^{(t)}\big)$: individual $i$ becomes
+infected if **at least one** sampled contact transmits.
+
+**Implied one-step hazard.** Conditional on the contact set, let
+$m_i^{(t)} = \sum_{j \in C_i^{(t)}} X_j^{(t)}$ be the number of infected
+contacts. Then the probability that a susceptible individual is infected on the
+next day is
+
+$$
+\Pr\!\big(X_i^{(t+1)} = 1 \,\big|\, \mathbf{X}^{(t)}, C_i^{(t)},\, X_i^{(t)} = 0\big)
+= 1 - (1 - p)^{\,m_i^{(t)}}.
+$$
+
+Marginalising over the random contact draw, with
+$I^{(t)} = \sum_{j \neq i} X_j^{(t)}$ the number of infected among the other
+$N - 1$ individuals, $m_i^{(t)}$ follows a hypergeometric distribution and
+
+$$
+\Pr\!\big(X_i^{(t+1)} = 1 \,\big|\, \mathbf{X}^{(t)},\, X_i^{(t)} = 0\big)
+= 1 - \sum_{m=0}^{k}
+\frac{\dbinom{I^{(t)}}{m}\dbinom{N - 1 - I^{(t)}}{\,k - m\,}}{\dbinom{N - 1}{k}}
+\,(1 - p)^{\,m}.
+$$
+
+The `infection_function` below implements a single application of this
+transition for one individual $i$.
+
 ```{r}
 
 infection_function <- function(
