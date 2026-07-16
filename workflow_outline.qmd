@@ -6,7 +6,55 @@ format: html
 # Overall aims
 Develop a mechanistic model of human-human infectious disease transmission that will be largely disease agnostic but as specificity builds will resemble Ebola virus disease.
 
-#
+# Model description
+
+The code implements a stochastic individual-based **SI** (susceptible–infected) model on a time-varying random contact network.
+
+## State and indexing
+
+Let individuals be indexed $i \in \{1,\dots,N\}$ (`individual_index`) and discrete time steps $t \in \{1,\dots,T\}$ (`n_time_steps`). Let $X_i^{(t)} \in \{0,1\}$ be the infection status of individual $i$ at time $t$ (`infection_status_over_time[t, i]`), with $1$ = infected and $0$ = susceptible. Infection is absorbing — there is no recovery.
+
+The initial condition (`init_infection_status`) seeds a single infected individual:
+
+$$X_i^{(1)} = \mathbb{1}[i = 1], \qquad \text{i.e. } X^{(1)} = (1,0,\dots,0).$$
+
+## Contact process (`simulate_contact_pairs`)
+
+At each time step $t$ a fresh contact set is drawn. With $n_c$ contact events per individual (`n_contact_events`) and $M = n_c N$ candidate events, draw independently, with replacement,
+
+$$a_k \sim \mathrm{Unif}\{1,\dots,N\}, \quad b_k \sim \mathrm{Unif}\{1,\dots,N\}, \qquad k = 1,\dots,M,$$
+
+and discard self-pairs. The contact set at time $t$ is
+
+$$\mathcal{E}^{(t)} = \big\{ (a_k, b_k) : a_k \neq b_k,\ k = 1,\dots,M \big\}.$$
+
+The set of distinct contacts of individual $i$ collapses both stored directions (`contacts_1`, `contacts_2`, then `unique`):
+
+$$\mathcal{N}_i^{(t)} = \{\, b : (i,b) \in \mathcal{E}^{(t)} \,\} \;\cup\; \{\, a : (a,i) \in \mathcal{E}^{(t)} \,\}.$$
+
+## Infection update (`infection_function`)
+
+For a susceptible individual $i$ ($X_i^{(t)}=0$), each individual $j$ contributes an independent Bernoulli transmission trial with success probability $p\,X_j^{(t)}$ only if $j$ is a contact (the length-$N$ `possible_infections` vector passed to `rbinom`):
+
+$$B_{ij}^{(t)} \sim \mathrm{Bernoulli}\!\Big( p \, X_j^{(t)} \, \mathbb{1}[\,j \in \mathcal{N}_i^{(t)}\,] \Big), \qquad p = \texttt{p\_infection}.$$
+
+The individual becomes infected if any trial succeeds (`max(outcome)`), and infected individuals remain infected (`if(state) return(TRUE)`):
+
+$$X_i^{(t+1)} = \max\!\Big( X_i^{(t)},\ \max_{j} B_{ij}^{(t)} \Big).$$
+
+Marginalising over the Bernoulli trials, and letting $k_i^{(t)} = \big|\{\, j \in \mathcal{N}_i^{(t)} : X_j^{(t)} = 1 \,\}\big|$ be $i$'s number of infectious contacts,
+
+$$
+X_i^{(t+1)} \mid X^{(t)} \ \sim\
+\begin{cases}
+\delta_{1} & X_i^{(t)} = 1,\\[4pt]
+\mathrm{Bernoulli}\!\Big(1 - (1-p)^{\,k_i^{(t)}}\Big) & X_i^{(t)} = 0.
+\end{cases}
+$$
+
+The time loop runs $t = 1,\dots,T-1$, generating $X^{(2)},\dots,X^{(T)}$, each with its own independent contact draw $\mathcal{E}^{(t)}$.
+
+# Implementation
 
 Daily universal probabilities
 ```{r}
