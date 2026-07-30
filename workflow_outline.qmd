@@ -11,12 +11,18 @@ Develop a mechanistic model of human-human infectious disease transmission that 
 Daily universal probabilities
 ```{r}
 seed <- set.seed(20260604)
+# set timestep size in days
+dt <- 1
 params <- list(
+  # simulation setup
+  timestep_size = dt,
   individual_index = 1:10,
-  n_contact_events = 2,
   init_infection_status = c(TRUE, rep(FALSE, 9)),
-  p_infection = 0.2,
-  n_time_steps = 10
+  n_time_steps = 10,
+  # epi params
+  n_contact_events_per_day = 2,
+  p_infection_per_contact_event = 0.2,
+  p_recovery_per_day = 0.1
 )
 
 ### for next session: add compartments after infection (recovery and death)
@@ -28,10 +34,10 @@ Create contact pairs prior to the timesteps
 
 simulate_contact_pairs <- function(
     individual_index  = params$individual_index,
-    n_contact_events = params$n_contact_events) {
+    n_contact_events_per_day = params$n_contact_events_per_day) {
   
   n_individuals <- length(individual_index) 
-  sample_size_contact_events <- n_contact_events*n_individuals
+  sample_size_contact_events <- n_contact_events_per_day*n_individuals
 
 first_contact <- sample(x = individual_index, size = sample_size_contact_events, replace = TRUE)
 second_contact <- sample(x = individual_index, size = sample_size_contact_events, replace = TRUE)
@@ -83,6 +89,42 @@ infection_function <- function(
 
 ```
 
+Add a recovery process - add a per-timestep probability of becoming susceptible again (or later recovered, or partially recovered).
+
+Options:
+ 1. start with a fixed per-timestep probability of moving to susceptible
+ 2. Have a dynamic process governing infection level
+ 
+
+```{r}
+recovery_function <- function(
+    index,
+    prob_recovery,
+    infection_status
+  ){
+  
+    this_one_is_infected <- infection_status[index]
+    
+    # if they are infected, make them susceptible with some probability
+    if (this_one_is_infected) {
+      # make them susceptible again with some probability
+      # recovered <- as.logical(rbinom(1, 1, prob = prob_recovery))
+      this_one_is_susceptible <- runif(1, min = 0, max = 1) < prob_recovery
+    } else {
+      this_one_is_susceptible <- TRUE
+    }
+    
+    # return the new infection status
+    this_one_is_infected <- !this_one_is_susceptible
+    
+    this_one_is_infected
+
+}
+
+
+```
+
+
 ```{r}
 # Time-steps
 # Currently takes in single contact_pairs object (should take in a unique one per time step)
@@ -95,17 +137,57 @@ for (t in 1:((params$n_time_steps)-1)) {
   
   contact_pairs_over_time[[t]] <- simulate_contact_pairs()
   
+  infected_after_infections <- rep(NA, length(params$individual_index))
+  infected_after_recoveries <- rep(NA, length(params$individual_index))
+  
+  previously_infected <- infection_status_over_time[t,]
+
+  
+  # do infections
   for (i in params$individual_index) {
     
     y <- infection_function(
       index = i, 
-      prob_infection = params$p_infection, 
+      prob_infection = params$p_infection_per_contact_event, 
       contact_pairs = contact_pairs_over_time[[t]], 
-      infection_status = infection_status_over_time[t,]
+      infection_status = previously_infected
       )
     
-    infection_status_over_time[t+1,i] <- y
+    infected_after_infections[i] <- y
   }
+  
+  # do recoveries
+  for (i in params$individual_index) {
+
+    # # binomial process ofr probability of recovery
+    # p_not_recover_per_day <- 1 - params$p_recovery_per_day
+    # n_days <- params$timestep_size
+    # p_not_recover_per_timestep <- p_not_recover_per_day ^ n_days
+    # p_recovery_per_timestep <- 1 - p_not_recover_per_timestep
+    p_recovery_per_timestep <- 1 - (1 - params$p_recovery_per_day) ^ params$timestep_size
+    
+    # note in a compartmental type model with a rate, applied to a discrete timestep, the probability of changing state over that timestep is: 1 - exp(-rate * dt)
+
+    
+    y <- recovery_function(
+      index = i, 
+      prob_recovery = p_recovery_per_timestep, 
+      # this doesn't include the new infections in this time step! That's nice?
+      infection_status = previously_infected
+    )
+    
+    infected_after_recoveries[i] <- y
+  }
+
+  newly_infected <- infected_after_infections & !previously_infected
+  newly_recovered <- !infected_after_recoveries & previously_infected
+
+  # what do we put in the new infection status?  
+  currently_infected <- previously_infected & !newly_recovered |
+    !previously_infected & newly_infected
+  
+  infection_status_over_time[t+1, ] <- currently_infected
+
 }
 
 infection_status_over_time
@@ -113,5 +195,7 @@ infection_status_over_time
 # print(contact_pairs_over_time)
 
 ```
-
+```{r}
+image(infection_status_over_time)
+```
 
