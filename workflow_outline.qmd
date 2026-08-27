@@ -128,8 +128,15 @@ recovery_function <- function(
 ```{r}
 # Time-steps
 # Currently takes in single contact_pairs object (should take in a unique one per time step)
-infection_status_over_time <- matrix(nrow = params$n_time_steps, ncol = length(params$individual_index))
-infection_status_over_time[1,] <- params$init_infection_status
+individual_df <- data.frame(
+  infection_status = params$init_infection_status
+  # to add more columns later 
+)
+
+# a logger to record information 
+logger <- data.frame (
+  prev = c(mean(individual_df$infection_status), rep(NA, params$n_time_steps - 1))
+)
 
 contact_pairs_over_time <- list()
 
@@ -140,7 +147,7 @@ for (t in 1:((params$n_time_steps)-1)) {
   infected_after_infections <- rep(NA, length(params$individual_index))
   infected_after_recoveries <- rep(NA, length(params$individual_index))
   
-  previously_infected <- infection_status_over_time[t,]
+  previously_infected <- individual_df$infection_status
 
   
   # do infections
@@ -155,6 +162,8 @@ for (t in 1:((params$n_time_steps)-1)) {
     
     infected_after_infections[i] <- y
   }
+  
+
   
   # do recoveries
   for (i in params$individual_index) {
@@ -186,11 +195,14 @@ for (t in 1:((params$n_time_steps)-1)) {
   currently_infected <- previously_infected & !newly_recovered |
     !previously_infected & newly_infected
   
-  infection_status_over_time[t+1, ] <- currently_infected
-
+  individual_df$infection_status <- currently_infected
+ 
+  logger$prev[t + 1] <-  mean(individual_df$infection_status)
+  
 }
 
-infection_status_over_time
+
+logger
 # can print contact pairs for diagnostics
 # print(contact_pairs_over_time)
 
