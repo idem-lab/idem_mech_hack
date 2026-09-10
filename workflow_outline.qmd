@@ -17,7 +17,7 @@ params <- list(
   # simulation setup
   timestep_size = dt,
   individual_index = 1:10,
-  init_infection_status = c('I', rep("S", 9)),
+  init_compartment = c('I', rep("S", 9)),
   n_time_steps = 10,
   # epi params
   n_contact_events_per_day = 2,
@@ -60,9 +60,9 @@ infection_function <- function(
     index,
     prob_infection,
     contact_pairs,
-    infection_status
+    compartment
   ){
-  state <- infection_status[index]
+  state <- compartment[index]
   
   if(state == "I") {
     return("I")
@@ -71,8 +71,8 @@ infection_function <- function(
   contacts_2 <- contact_pairs$first_contact[contact_pairs$second_contact == index]
   contacts <- c(contacts_1, contacts_2)
     
-  contacted <- seq_along(infection_status) %in% contacts # exclude multiple contact events between the same pair within the same timestep --- note we intend to look over this decision in the future
-    infectious_contacts <- (infection_status == "I") & contacted   
+  contacted <- seq_along(compartment) %in% contacts # exclude multiple contact events between the same pair within the same timestep --- note we intend to look over this decision in the future
+    infectious_contacts <- (compartment == "I") & contacted   
     
     possible_infections <- prob_infection*infectious_contacts
     
@@ -96,7 +96,7 @@ infection_function <- function(
 #       index = i, 
 #       prob_infection = params$p_infection_per_contact_event, 
 #       contact_pairs = contact_pairs_over_time[[1]], 
-#       infection_status = params$init_infection_status
+#       compartment = params$init_compartment
 #       )
 #   print(inf)
 # }
@@ -114,10 +114,10 @@ Options:
 recovery_function <- function(
     index,
     prob_recovery,
-    infection_status
+    compartment
   ){
   
-    state <- infection_status[index]
+    state <- compartment[index]
     
     # if they are infected, make them susceptible with some probability
     if (state == "I") {
@@ -140,7 +140,7 @@ recovery_function <- function(
 #   st <- recovery_function(
 #     index = i,
 #     prob_recovery = 0.3,
-#     infection_status = rep("I",10)
+#     compartment = rep("I",10)
 #   )
 #   print(st)
 # }
@@ -153,13 +153,13 @@ recovery_function <- function(
 # Time-steps
 # Currently takes in single contact_pairs object (should take in a unique one per time step)
 individual_df <- data.frame(
-  infection_status = params$init_infection_status
+  compartment = params$init_compartment
   # to add more columns later 
 )
 
 # a logger to record information 
 logger <- data.frame (
-  prev = c(mean(individual_df$infection_status == "I"), rep(NA, params$n_time_steps - 1))
+  prev = c(mean(individual_df$compartment == "I"), rep(NA, params$n_time_steps - 1))
 )
 
 contact_pairs_over_time <- list()
@@ -171,7 +171,7 @@ for (t in 1:((params$n_time_steps)-1)) {
   infected_after_infections <- rep(NA, length(params$individual_index))
   infected_after_recoveries <- rep(NA, length(params$individual_index))
   
-  current_infection_status <- individual_df$infection_status
+  current_compartment <- individual_df$compartment
 
   
   # do infections
@@ -181,7 +181,7 @@ for (t in 1:((params$n_time_steps)-1)) {
       index = i, 
       prob_infection = params$p_infection_per_contact_event, 
       contact_pairs = contact_pairs_over_time[[t]], 
-      infection_status = current_infection_status
+      compartment = current_compartment
       )
     
     infected_after_infections[i] <- (y == "I")
@@ -206,14 +206,14 @@ for (t in 1:((params$n_time_steps)-1)) {
       index = i, 
       prob_recovery = p_recovery_per_timestep, 
       # this doesn't include the new infections in this time step! That's nice?
-      infection_status = current_infection_status
+      compartment = current_compartment
     )
     
     infected_after_recoveries[i] <- (y == "I")
   }
   
   # Update to be a logical rather than a string
-  previously_infected <- (individual_df$infection_status == "I")
+  previously_infected <- (individual_df$compartment == "I")
 
   newly_infected <- infected_after_infections & !previously_infected
   newly_recovered <- !infected_after_recoveries & previously_infected
@@ -224,7 +224,7 @@ for (t in 1:((params$n_time_steps)-1)) {
   currently_infected <- (previously_infected & !newly_recovered) |
     (!previously_infected & newly_infected)
   
-  individual_df$infection_status <- ifelse(currently_infected, "I","S")
+  individual_df$compartment <- ifelse(currently_infected, "I","S")
  
   logger$prev[t + 1] <-  mean(currently_infected)
   
