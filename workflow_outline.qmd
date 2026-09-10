@@ -17,7 +17,7 @@ params <- list(
   # simulation setup
   timestep_size = dt,
   individual_index = 1:10,
-  init_infection_status = c(TRUE, rep(FALSE, 9)),
+  init_infection_status = c('I', rep("S", 9)),
   n_time_steps = 10,
   # epi params
   n_contact_events_per_day = 2,
@@ -64,15 +64,15 @@ infection_function <- function(
   ){
   state <- infection_status[index]
   
-  if(state) {
-    return(TRUE)
+  if(state == "I") {
+    return("I")
   } else {
   contacts_1 <- contact_pairs$second_contact[contact_pairs$first_contact == index]
   contacts_2 <- contact_pairs$first_contact[contact_pairs$second_contact == index]
   contacts <- c(contacts_1, contacts_2)
     
   contacted <- seq_along(infection_status) %in% contacts # exclude multiple contact events between the same pair within the same timestep --- note we intend to look over this decision in the future
-  infectious_contacts <- infection_status & contacted   
+    infectious_contacts <- (infection_status == "I") & contacted   
     
     possible_infections <- prob_infection*infectious_contacts
     
@@ -82,10 +82,24 @@ infection_function <- function(
       prob = possible_infections
     )
     
-    return(as.logical(max(outcome)))
+    if (max(outcome) ==1) {
+      state <- "I"
+    }
     
+    return(state)
   }
 }
+
+# Test
+# for (i in 1:10){
+#   inf <- infection_function(
+#       index = i, 
+#       prob_infection = params$p_infection_per_contact_event, 
+#       contact_pairs = contact_pairs_over_time[[1]], 
+#       infection_status = params$init_infection_status
+#       )
+#   print(inf)
+# }
 
 ```
 
@@ -103,23 +117,33 @@ recovery_function <- function(
     infection_status
   ){
   
-    this_one_is_infected <- infection_status[index]
+    state <- infection_status[index]
     
     # if they are infected, make them susceptible with some probability
-    if (this_one_is_infected) {
+    if (state == "I") {
       # make them susceptible again with some probability
       # recovered <- as.logical(rbinom(1, 1, prob = prob_recovery))
       this_one_is_susceptible <- runif(1, min = 0, max = 1) < prob_recovery
-    } else {
-      this_one_is_susceptible <- TRUE
+      
+      if (this_one_is_susceptible){
+        state <- "S"
+      }
     }
     
     # return the new infection status
-    this_one_is_infected <- !this_one_is_susceptible
-    
-    this_one_is_infected
+   return(state)
 
 }
+
+# Test 
+# for (i in 1:10){
+#   st <- recovery_function(
+#     index = i,
+#     prob_recovery = 0.3,
+#     infection_status = rep("I",10)
+#   )
+#   print(st)
+# }
 
 
 ```
@@ -135,7 +159,7 @@ individual_df <- data.frame(
 
 # a logger to record information 
 logger <- data.frame (
-  prev = c(mean(individual_df$infection_status), rep(NA, params$n_time_steps - 1))
+  prev = c(mean(individual_df$infection_status == "I"), rep(NA, params$n_time_steps - 1))
 )
 
 contact_pairs_over_time <- list()
@@ -147,7 +171,7 @@ for (t in 1:((params$n_time_steps)-1)) {
   infected_after_infections <- rep(NA, length(params$individual_index))
   infected_after_recoveries <- rep(NA, length(params$individual_index))
   
-  previously_infected <- individual_df$infection_status
+  current_infection_status <- individual_df$infection_status
 
   
   # do infections
@@ -157,10 +181,10 @@ for (t in 1:((params$n_time_steps)-1)) {
       index = i, 
       prob_infection = params$p_infection_per_contact_event, 
       contact_pairs = contact_pairs_over_time[[t]], 
-      infection_status = previously_infected
+      infection_status = current_infection_status
       )
     
-    infected_after_infections[i] <- y
+    infected_after_infections[i] <- (y == "I")
   }
   
 
@@ -182,22 +206,27 @@ for (t in 1:((params$n_time_steps)-1)) {
       index = i, 
       prob_recovery = p_recovery_per_timestep, 
       # this doesn't include the new infections in this time step! That's nice?
-      infection_status = previously_infected
+      infection_status = current_infection_status
     )
     
-    infected_after_recoveries[i] <- y
+    infected_after_recoveries[i] <- (y == "I")
   }
+  
+  # Update to be a logical rather than a string
+  previously_infected <- (individual_df$infection_status == "I")
 
   newly_infected <- infected_after_infections & !previously_infected
   newly_recovered <- !infected_after_recoveries & previously_infected
 
-  # what do we put in the new infection status?  
-  currently_infected <- previously_infected & !newly_recovered |
-    !previously_infected & newly_infected
+  # what do we put in the new infection status? 
+  # If previously infected and haven't recovered -> still infected
+  # If not previously infected and became infected -> infected
+  currently_infected <- (previously_infected & !newly_recovered) |
+    (!previously_infected & newly_infected)
   
-  individual_df$infection_status <- currently_infected
+  individual_df$infection_status <- ifelse(currently_infected, "I","S")
  
-  logger$prev[t + 1] <-  mean(individual_df$infection_status)
+  logger$prev[t + 1] <-  mean(currently_infected)
   
 }
 
@@ -207,7 +236,10 @@ logger
 # print(contact_pairs_over_time)
 
 ```
+
+
+
 ```{r}
-image(infection_status_over_time)
+plot(logger$prev)
 ```
 
