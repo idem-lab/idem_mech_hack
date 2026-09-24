@@ -8,21 +8,23 @@ Develop a mechanistic model of human-human infectious disease transmission that 
 
 #
 
-Daily universal probabilities
+Daily universal probabilities - not changing over time
 ```{r}
 seed <- set.seed(20260604)
 # set timestep size in days
 dt <- 1
 params <- list(
+  
   # simulation setup
   timestep_size = dt,
   individual_index = 1:10,
-  init_compartment = c('I', rep("S", 9)),
-  n_time_steps = 10,
+  init_compartment = c('I', rep("S", 9)), 
+  n_time_steps = 100,
+  
   # epi params
   n_contact_events_per_day = 2,
   p_infection_per_contact_event = 0.2,
-  p_recovery_per_day = 0.1
+  p_recovery_per_day = 0.1 # rate to become recovered
 )
 
 ### for next session: add compartments after infection (recovery and death)
@@ -64,14 +66,16 @@ infection_function <- function(
   ){
   state <- compartment[index]
   
-  if(state == "I") {
+  if (state == "I") {
     return("I")
+  } else if (state == "R" ) {
+    return("R") 
   } else {
-  contacts_1 <- contact_pairs$second_contact[contact_pairs$first_contact == index]
-  contacts_2 <- contact_pairs$first_contact[contact_pairs$second_contact == index]
-  contacts <- c(contacts_1, contacts_2)
+    contacts_1 <- contact_pairs$second_contact[contact_pairs$first_contact == index]
+    contacts_2 <- contact_pairs$first_contact[contact_pairs$second_contact == index]
+    contacts <- c(contacts_1, contacts_2)
     
-  contacted <- seq_along(compartment) %in% contacts # exclude multiple contact events between the same pair within the same timestep --- note we intend to look over this decision in the future
+    contacted <- seq_along(compartment) %in% contacts # exclude multiple contact events between the same pair within the same timestep --- note we intend to look over this decision in the future
     infectious_contacts <- (compartment == "I") & contacted   
     
     possible_infections <- prob_infection*infectious_contacts
@@ -123,10 +127,10 @@ recovery_function <- function(
     if (state == "I") {
       # make them susceptible again with some probability
       # recovered <- as.logical(rbinom(1, 1, prob = prob_recovery))
-      this_one_is_susceptible <- runif(1, min = 0, max = 1) < prob_recovery
+      this_one_is_recovered <- runif(1, min = 0, max = 1) < prob_recovery
       
-      if (this_one_is_susceptible){
-        state <- "S"
+      if (this_one_is_recovered){
+        state <- "R"
       }
     }
     
@@ -159,7 +163,8 @@ individual_df <- data.frame(
 
 # a logger to record information 
 logger <- data.frame (
-  prev = c(mean(individual_df$compartment == "I"), rep(NA, params$n_time_steps - 1))
+  prev = c(mean(individual_df$compartment == "I"), rep(NA, params$n_time_steps - 1)),
+  recovered = c(mean(individual_df$compartment == "R"), rep(NA, params$n_time_steps - 1))
 )
 
 contact_pairs_over_time <- list()
@@ -214,6 +219,7 @@ for (t in 1:((params$n_time_steps)-1)) {
   
   # Update to be a logical rather than a string
   previously_infected <- (individual_df$compartment == "I")
+  previously_recovered <- (individual_df$compartment == "R")
 
   newly_infected <- infected_after_infections & !previously_infected
   newly_recovered <- !infected_after_recoveries & previously_infected
@@ -223,10 +229,20 @@ for (t in 1:((params$n_time_steps)-1)) {
   # If not previously infected and became infected -> infected
   currently_infected <- (previously_infected & !newly_recovered) |
     (!previously_infected & newly_infected)
+  currently_recovered <- (previously_recovered) | #& !newly_infected) |
+    (!previously_recovered & newly_recovered)
   
-  individual_df$compartment <- ifelse(currently_infected, "I","S")
+  ## later should be revised to ensure that individuals are not TRUE in two 
+  ## different categories
+  individual_df$compartment <- dplyr::case_when(
+    currently_infected ~ "I",
+    currently_recovered ~ "R", 
+    .default = "S"
+  )
+  
  
   logger$prev[t + 1] <-  mean(currently_infected)
+  logger$recovered[t + 1] <- mean(currently_recovered)
   
 }
 
@@ -241,5 +257,6 @@ logger
 
 ```{r}
 plot(logger$prev)
+plot(logger$recovered) # should be monotonic increasing. yay
 ```
 
