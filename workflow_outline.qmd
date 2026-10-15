@@ -344,3 +344,19 @@ plot(logger$susceptible)
 
 ```
 
+plot all the proportions together and check they add to 1
+
+```{r}
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+
+logger |>
+  mutate(row = row_number()) |>
+  pivot_longer(-row, names_to = "column", values_to = "value") |>
+  ggplot(aes(x = row, y = value, fill = column)) +
+  geom_col() +
+  labs(x = "Row", y = "Value", fill = NULL)
+
+```
+
