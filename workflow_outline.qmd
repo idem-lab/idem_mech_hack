@@ -251,7 +251,7 @@ for (t in 1:((params$n_time_steps)-1)) {
       compartment = current_compartment
     )
     
-    susceptible_after_reversions <- (y == "S")
+    susceptible_after_reversions[i] <- (y == "S")
 
   }
 
