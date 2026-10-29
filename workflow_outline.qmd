@@ -212,9 +212,11 @@ individual_df <- data.frame(
 
 # a logger to record information 
 logger <- data.frame (
-  prev = c(mean(individual_df$compartment == "I"), rep(NA, params$n_time_steps - 1)),
+  inf_prev = c(mean(individual_df$compartment == "I"), rep(NA, params$n_time_steps - 1)),
+  inf_inc = c(sum(newly_infected), rep(NA, params$n_time_steps - 1)),
   recovered = c(mean(individual_df$compartment == "R"), rep(NA, params$n_time_steps - 1)),
   susceptible = c(mean(individual_df$compartment == "S"), rep(NA, params$n_time_steps - 1))
+  
 )
 
 contact_pairs_over_time <- list()
@@ -332,7 +334,8 @@ for (t in 1:((params$n_time_steps)-1)) {
   )
   
  
-  logger$prev[t + 1] <-  mean(currently_infected)
+  logger$inf_prev[t + 1] <-  mean(currently_infected)
+  logger$inf_inc[t + 1] <- sum(newly_infected) 
   logger$recovered[t + 1] <- mean(currently_recovered)
   logger$susceptible[t + 1] <- mean(currently_susceptible)
   
@@ -348,7 +351,8 @@ logger
 
 
 ```{r}
-plot(logger$prev)
+plot(logger$inf_prev)
+plot(logger$inf_inc)
 plot(logger$recovered) # should be monotonic increasing. yay # not any more sukas
 plot(logger$susceptible)
 
@@ -361,7 +365,7 @@ library(ggplot2)
 library(dplyr)
 library(tidyr)
 
-logger |>
+logger |> select(-inf_inc) |>
   mutate(row = row_number()) |>
   pivot_longer(-row, names_to = "column", values_to = "value") |>
   ggplot(aes(x = row, y = value, fill = column)) +
