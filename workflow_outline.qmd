@@ -227,6 +227,8 @@ for (t in 1:((params$n_time_steps)-1)) {
   susceptible_after_reversions <- rep(NA, length(params$individual_index))
   infected_after_infections <- rep(NA, length(params$individual_index))
   infected_after_recoveries <- rep(NA, length(params$individual_index))
+  recovered_after_recoveries <- rep(NA, length(params$individual_index))
+  
   
   current_compartment <- individual_df$compartment
   
@@ -256,7 +258,7 @@ for (t in 1:((params$n_time_steps)-1)) {
   }
 
   
-  # do infections
+  # susceptible to infected
   for (i in params$individual_index) {
     y <- infection_function(
       index = i, 
@@ -270,7 +272,7 @@ for (t in 1:((params$n_time_steps)-1)) {
   
 
   
-  # do recoveries
+  # infected to recovered
   for (i in params$individual_index) {
 
     # # binomial process ofr probability of recovery
@@ -290,6 +292,7 @@ for (t in 1:((params$n_time_steps)-1)) {
       compartment = current_compartment
     )
     
+    recovered_after_recoveries[i] <- (y == "R")
     infected_after_recoveries[i] <- (y == "I")
   }
   
@@ -299,9 +302,16 @@ for (t in 1:((params$n_time_steps)-1)) {
   previously_susceptible <- (individual_df$compartment == "S")
 
   newly_infected <- infected_after_infections & !previously_infected
-  newly_recovered <- !infected_after_recoveries & previously_infected
+#  newly_recovered <- !infected_after_recoveries & previously_infected
+  newly_recovered <- recovered_after_recoveries & !previously_recovered
   newly_susceptible <- susceptible_after_reversions & !previously_susceptible
 
+  # unit checks for things that shouldn't happen
+  stopifnot(newly_infected <= previously_susceptible)
+  stopifnot(newly_recovered <= previously_infected)
+  stopifnot(newly_susceptible <= previously_recovered)
+  
+  
   # what do we put in the new infection status? 
   # If previously infected and haven't recovered -> still infected
   # If not previously infected and became infected -> infected
@@ -357,6 +367,14 @@ logger |>
   ggplot(aes(x = row, y = value, fill = column)) +
   geom_col() +
   labs(x = "Row", y = "Value", fill = NULL)
+
+```
+
+add a unit test for incidence
+
+```{r}
+
+
 
 ```
 
