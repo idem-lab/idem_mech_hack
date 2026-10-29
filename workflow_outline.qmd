@@ -17,9 +17,9 @@ params <- list(
   
   # simulation setup
   timestep_size = dt,
-  individual_index = 1:10,
-  init_compartment = c('I', rep("S", 9)), 
-  n_time_steps = 100,
+  individual_index = 1:100,
+  init_compartment = c('I', rep("S", 99)), 
+  n_time_steps = 365,
   
   # epi params
   n_contact_events_per_day = 2,
@@ -370,7 +370,8 @@ logger |> select(-inf_inc) |>
   pivot_longer(-row, names_to = "column", values_to = "value") |>
   ggplot(aes(x = row, y = value, fill = column)) +
   geom_col() +
-  labs(x = "Row", y = "Value", fill = NULL)
+  labs(x = "Row", y = "Value", fill = NULL) + 
+  scale_fill_discrete(labels = c("inf_prev" = "infection prevalence", "recovered" = "recovered", "susceptible"  = "susceptible"))
 
 ```
 
