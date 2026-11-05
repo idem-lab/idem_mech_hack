@@ -211,10 +211,15 @@ individual_df <- data.frame(
   # to add more columns later 
 )
 
+# initial incidence: this ASSUMES everyone initially infected was infected at
+# the first time step. If we later give them an earlier time of infection (see
+# #11), this needs changing or the first incidence value will be silently wrong
+newly_infected <- individual_df$compartment == "I"
+
 # a logger to record information 
 logger <- data.frame (
   inf_prev = c(mean(individual_df$compartment == "I"), rep(NA, params$n_time_steps - 1)),
-  inf_inc = c(sum(individual_df$compartment == "I"), rep(NA, params$n_time_steps - 1)),
+  inf_inc = c(sum(newly_infected), rep(NA, params$n_time_steps - 1)),
   recovered = c(mean(individual_df$compartment == "R"), rep(NA, params$n_time_steps - 1)),
   susceptible = c(mean(individual_df$compartment == "S"), rep(NA, params$n_time_steps - 1))
   
