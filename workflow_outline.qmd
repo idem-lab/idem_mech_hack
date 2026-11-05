@@ -135,7 +135,7 @@ recovery_function <- function(
     if (state == "I") {
       # make them susceptible again with some probability
       # recovered <- as.logical(rbinom(1, 1, prob = prob_recovery))
-      this_one_is_recovered <- runif(1, min = 0, max = 1) < prob_recovery
+      this_one_is_recovered <- runif(1, min = 0, max = 1) < prob_recovery[index]
       
       if (this_one_is_recovered){
         state <- "R"
@@ -151,7 +151,7 @@ recovery_function <- function(
 # for (i in 1:10){
 #   st <- recovery_function(
 #     index = i,
-#     prob_recovery = 0.3,
+#     prob_recovery = rep(0.3, 10),
 #     compartment = rep("I",10)
 #   )
 #   print(st)
@@ -206,9 +206,15 @@ reversion_function <- function(
 # Time-steps
 # Currently takes in single contact_pairs object (should take in a unique one per time step)
 individual_df <- data.frame(
-  compartment = params$init_compartment
+  compartment = params$init_compartment,
+  p_recovery_per_day = params$p_recovery_per_day
   # to add more columns later 
 )
+
+# initial incidence: this ASSUMES everyone initially infected was infected at
+# the first time step. If we later give them an earlier time of infection (see
+# #11), this needs changing or the first incidence value will be silently wrong
+newly_infected <- individual_df$compartment == "I"
 
 # a logger to record information 
 logger <- data.frame (
@@ -282,7 +288,7 @@ for (t in 1:((params$n_time_steps)-1)) {
     # n_days <- params$timestep_size
     # p_not_recover_per_timestep <- p_not_recover_per_day ^ n_days
     # p_recovery_per_timestep <- 1 - p_not_recover_per_timestep
-    p_recovery_per_timestep <- 1 - (1 - params$p_recovery_per_day) ^ params$timestep_size
+    p_recovery_per_timestep <- 1 - (1 - individual_df$p_recovery_per_day) ^ params$timestep_size
     
     # note in a compartmental type model with a rate, applied to a discrete timestep, the probability of changing state over that timestep is: 1 - exp(-rate * dt)
 
