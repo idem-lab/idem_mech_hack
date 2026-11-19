@@ -16,6 +16,7 @@ This README is the single source of instructions for people and coding agents wo
 
 ## Rules for working on the code
 
+- Keep this README up to date with the code. When doing a PR, agents check whether the README still matches the code. If it needs changes, make them, commit them and include them in the same PR.
 - The notebook runs top to bottom in one shared environment. Every change must leave it runnable in order from a fresh R session.
 - Every state transition is guarded by a `stopifnot()` invariant in the time-step loop. Keep them when changing a transition, and add one for any new transition or compartment.
 - Parameters that are the same for everyone go in `params`. Parameters that vary between individuals go as columns of `individual_df`.
